@@ -146,10 +146,14 @@ class ErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: Error) {
-    // Filter out errors from browser extensions (e.g., walletRouter, chrome-extension)
+    // Filter out errors from browser extensions (e.g., walletRouter, chrome-extension, shouldSetTallyForCurrentProvider, window$walletRouter, Tally)
     if (
       (error.stack && error.stack.includes('chrome-extension://')) ||
-      (error.message && error.message.includes('walletRouter'))
+      (error.message && error.message.includes('walletRouter')) ||
+      (error.message && error.message.includes('shouldSetTallyForCurrentProvider')) ||
+      (error.message && error.message.includes('window$walletRouter')) ||
+      (error.stack && error.stack.includes('window$walletRouter')) ||
+      (error.message && error.message.includes('Tally'))
     ) {
       // Do not trigger error UI for extension errors
       return { hasError: false, error: null };
@@ -227,18 +231,15 @@ const App: React.FC = () => {
   ];
 
   useEffect(() => {
-    if (window.ethereum) {
+    if (typeof window !== 'undefined' && window.ethereum) {
       window.ethereum.request({ method: 'eth_chainId' }).then((id: string) => setChainId(id));
-      
       // Handle chain changes without page refresh
       const handleChainChanged = (id: string) => {
         setChainId(id);
         // Optionally show a success message
         console.log('Network switched successfully');
       };
-      
       window.ethereum.on('chainChanged', handleChainChanged);
-      
       // Cleanup listener
       return () => {
         window.ethereum.removeListener('chainChanged', handleChainChanged);

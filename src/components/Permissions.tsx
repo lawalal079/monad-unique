@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ethers } from 'ethers';
+import { Contract } from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
 import MonadNFTCollectionArtifact from '../abi/MonadNFTCollection.json';
 
@@ -43,7 +43,7 @@ const Permissions: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
+        const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
         const ownerAddr = await contract.owner();
         setOwner(ownerAddr);
       } catch (err: any) {
@@ -61,7 +61,7 @@ const Permissions: React.FC = () => {
     setSignersLoading(true);
     setSignersError(null);
     try {
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
       const signersList = await contract.getSigners();
       setSigners(signersList);
     } catch (err: any) {
@@ -78,7 +78,7 @@ const Permissions: React.FC = () => {
     setPauseLoading(true);
     setPauseError(null);
     try {
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
       const isPaused = await contract.paused();
       setPaused(isPaused);
     } catch (err: any) {
@@ -95,7 +95,7 @@ const Permissions: React.FC = () => {
     setAdminsLoading(true);
     setAdminsError(null);
     try {
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.provider);
       const adminsList = await contract.getAdmins();
       setAdmins(adminsList);
     } catch (err: any) {
@@ -115,7 +115,7 @@ const Permissions: React.FC = () => {
     try {
       if (!wallet.signer) throw new Error('Connect your wallet');
       if (!address) throw new Error('No collection address');
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
       const tx = await contract.addSigner(addSignerAddress);
       await tx.wait();
       setAddSignerSuccess('Signer added successfully!');
@@ -136,7 +136,7 @@ const Permissions: React.FC = () => {
     try {
       if (!wallet.signer) throw new Error('Connect your wallet');
       if (!address) throw new Error('No collection address');
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
       const tx = await contract.removeSigner(signerAddr);
       await tx.wait();
       setRemoveSignerSuccess('Signer removed successfully!');
@@ -156,7 +156,7 @@ const Permissions: React.FC = () => {
     try {
       if (!wallet.signer) throw new Error('Connect your wallet');
       if (!address) throw new Error('No collection address');
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
       let tx;
       if (paused) {
         tx = await contract.unpause();
@@ -182,7 +182,7 @@ const Permissions: React.FC = () => {
     try {
       if (!wallet.signer) throw new Error('Connect your wallet');
       if (!address) throw new Error('No collection address');
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
       const tx = await contract.addAdmin(addAdminAddress);
       await tx.wait();
       setAddAdminSuccess('Admin added successfully!');
@@ -203,7 +203,7 @@ const Permissions: React.FC = () => {
     try {
       if (!wallet.signer) throw new Error('Connect your wallet');
       if (!address) throw new Error('No collection address');
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, wallet.signer);
       const tx = await contract.removeAdmin(adminAddr);
       await tx.wait();
       setRemoveAdminSuccess('Admin removed successfully!');

@@ -150,7 +150,7 @@ const WalletConnectButton: React.FC = () => {
               onClick={handleCopy}
             >
               Copy Address
-            </button>
+              </button>
             <button
               className="w-full text-left px-4 py-2 hover:bg-purple-800 text-white rounded-b-lg"
               onClick={() => { disconnectWallet(); setDropdownOpen(false); }}
@@ -197,7 +197,7 @@ const WalletConnectButton: React.FC = () => {
               Cancel
             </button>
           </div>
-        </div>
+    </div>
       )}
     </>
   );

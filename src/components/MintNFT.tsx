@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ethers } from 'ethers';
+import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import MonadNFTCollectionArtifact from '../abi/MonadNFTCollection.json';
 import lighthouse from '@lighthouse-web3/sdk';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -80,8 +80,8 @@ const MintNFT: React.FC = () => {
   React.useEffect(() => {
     async function fetchAddress() {
       if ((window as any).ethereum) {
-        const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-        const signer = provider.getSigner();
+        const provider = new BrowserProvider((window as any).ethereum);
+        const signer = await provider.getSigner();
         const addr = await signer.getAddress();
         setDestination(addr);
         setRoyaltyAddress(addr);
@@ -89,21 +89,25 @@ const MintNFT: React.FC = () => {
     }
     fetchAddress();
     // Listen for account changes
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts && accounts[0]) {
+        setDestination(accounts[0]);
+        setRoyaltyAddress(accounts[0]);
+      }
+    };
     if ((window as any).ethereum) {
-      (window as any).ethereum.on('accountsChanged', (accounts: string[]) => {
-        if (accounts && accounts[0]) {
-          setDestination(accounts[0]);
-          setRoyaltyAddress(accounts[0]);
-        }
-      });
+      (window as any).ethereum.on('accountsChanged', handleAccountsChanged);
+      return () => {
+        (window as any).ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
     }
   }, []);
 
   React.useEffect(() => {
     async function fetchRoyaltyInfo() {
       if (address && (window as any).ethereum) {
-        const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-        const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, provider);
+        const provider = new BrowserProvider((window as any).ethereum);
+        const contract = new Contract(address, MonadNFTCollectionArtifact.abi, provider);
         try {
           const [receiver, fee] = await contract.royaltyInfo(1); // 1 = dummy sale price
           setRoyaltyAddress(receiver);
@@ -141,9 +145,9 @@ const MintNFT: React.FC = () => {
       // 4. Call contract mint function
       if (!(window as any).ethereum) throw new Error('Wallet not found');
       await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, signer);
+      const provider = new BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, signer);
       // Check if contract is paused
       let isPaused = false;
       try {

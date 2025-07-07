@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { ethers, Signer } from 'ethers';
+import { BrowserProvider, Contract, getDefaultProvider, JsonRpcSigner } from 'ethers';
 import EthereumProvider from '@walletconnect/ethereum-provider';
 
 export interface WalletInfo {
@@ -7,8 +7,8 @@ export interface WalletInfo {
   balance: string;
   chainId: number;
   isConnected: boolean;
-  provider: ethers.providers.Web3Provider | null;
-  signer: Signer | null;
+  provider: BrowserProvider | null;
+  signer: JsonRpcSigner | null;
 }
 
 interface WalletContextType {
@@ -34,7 +34,7 @@ interface WalletProviderProps {
   children: React.ReactNode;
 }
 
-const WALLETCONNECT_PROJECT_ID = '6b9d177bf515235717cbe18feecda11e';
+const WALLETCONNECT_PROJECT_ID = process.env.REACT_APP_WALLETCONNECT_PROJECT_ID;
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [wallet, setWallet] = useState<WalletInfo>({
@@ -57,7 +57,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     try {
       // Check for MetaMask
       if (typeof window.ethereum !== 'undefined') {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const provider = new BrowserProvider(window.ethereum);
         const accounts = await provider.listAccounts();
         if (accounts.length > 0) {
           await connectWallet('metamask');
@@ -86,7 +86,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setIsLoading(true);
     setError(null);
     try {
-      let provider: ethers.providers.Web3Provider | null = null;
+      let provider: BrowserProvider | null = null;
       let selectedWallet = walletType;
       const availableWallets = detectAvailableWallets();
       if (!selectedWallet) {
@@ -103,22 +103,21 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         case 'walletconnect': provider = await connectWalletConnect(); break;
         default: throw new Error('No supported wallet found');
       }
-      const signer = provider.getSigner();
+      const signer = await provider.getSigner();
       const address = await signer.getAddress();
       const network = await provider.getNetwork();
       setWallet({
         address,
         balance: '0',
-        chainId: network.chainId,
+        chainId: Number(network.chainId),
         isConnected: true,
         provider,
         signer,
       });
       // Listen for account/network changes
-      const prov: any = provider.provider;
-      if (prov && typeof prov.on === 'function') {
-        prov.on('accountsChanged', handleAccountsChanged);
-        prov.on('chainChanged', handleChainChanged);
+      if (typeof window !== 'undefined' && window.ethereum) {
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+        window.ethereum.on('chainChanged', handleChainChanged);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to connect wallet');
@@ -128,16 +127,16 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
-  const connectMetaMask = async (): Promise<ethers.providers.Web3Provider> => {
+  const connectMetaMask = async (): Promise<BrowserProvider> => {
     if (typeof window.ethereum === 'undefined') {
       throw new Error('MetaMask is not installed');
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const provider = new BrowserProvider(window.ethereum);
     await provider.send('eth_requestAccounts', []);
     return provider;
   };
 
-  const connectRabby = async (): Promise<ethers.providers.Web3Provider> => {
+  const connectRabby = async (): Promise<BrowserProvider> => {
     if (typeof window.ethereum === 'undefined') {
       throw new Error('Rabby Wallet is not installed');
     }
@@ -145,12 +144,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!window.ethereum.isRabby) {
       throw new Error('Please switch to Rabby Wallet in your browser');
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const provider = new BrowserProvider(window.ethereum);
     await provider.send('eth_requestAccounts', []);
     return provider;
   };
 
-  const connectBackpack = async (): Promise<ethers.providers.Web3Provider> => {
+  const connectBackpack = async (): Promise<BrowserProvider> => {
     if (typeof window.ethereum === 'undefined') {
       throw new Error('Backpack is not installed');
     }
@@ -158,12 +157,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!window.ethereum.isBackpack) {
       throw new Error('Please switch to Backpack in your browser');
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const provider = new BrowserProvider(window.ethereum);
     await provider.send('eth_requestAccounts', []);
     return provider;
   };
 
-  const connectPhantom = async (): Promise<ethers.providers.Web3Provider> => {
+  const connectPhantom = async (): Promise<BrowserProvider> => {
     if (typeof window.ethereum === 'undefined') {
       throw new Error('Phantom is not installed');
     }
@@ -171,12 +170,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!window.ethereum.isPhantom) {
       throw new Error('Please switch to Phantom in your browser');
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const provider = new BrowserProvider(window.ethereum);
     await provider.send('eth_requestAccounts', []);
     return provider;
   };
 
-  const connectOKX = async (): Promise<ethers.providers.Web3Provider> => {
+  const connectOKX = async (): Promise<BrowserProvider> => {
     if (typeof window.ethereum === 'undefined') {
       throw new Error('OKX Web3 is not installed');
     }
@@ -184,12 +183,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!window.ethereum.isOkxWallet) {
       throw new Error('Please switch to OKX Web3 in your browser');
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const provider = new BrowserProvider(window.ethereum);
     await provider.send('eth_requestAccounts', []);
     return provider;
   };
 
-  const connectHaha = async (): Promise<ethers.providers.Web3Provider> => {
+  const connectHaha = async (): Promise<BrowserProvider> => {
     if (typeof window.ethereum === 'undefined') {
       throw new Error('Haha Wallet is not installed');
     }
@@ -197,23 +196,30 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!window.ethereum.isHahaWallet) {
       throw new Error('Please switch to Haha Wallet in your browser');
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const provider = new BrowserProvider(window.ethereum);
     await provider.send('eth_requestAccounts', []);
     return provider;
   };
 
-  const connectWalletConnect = async (): Promise<ethers.providers.Web3Provider> => {
+  const connectWalletConnect = async (): Promise<BrowserProvider> => {
     // WalletConnect v2 integration
+    if (!WALLETCONNECT_PROJECT_ID) {
+      throw new Error('WalletConnect Project ID missing. Please set REACT_APP_WALLETCONNECT_PROJECT_ID in your environment variables.');
+    }
     const provider = await EthereumProvider.init({
       projectId: WALLETCONNECT_PROJECT_ID,
-      chains: [10143], // Monad Testnet chainId
+      chains: [1],
       showQrModal: true,
-      rpcMap: {
-        10143: 'https://testnet-rpc.monad.xyz',
-      },
+      methods: [
+        'eth_sendTransaction',
+        'eth_signTransaction',
+        'eth_sign',
+        'personal_sign',
+        'eth_signTypedData',
+      ],
     });
     await provider.enable();
-    return new ethers.providers.Web3Provider(provider);
+    return new BrowserProvider(provider);
   };
 
   const handleAccountsChanged = async (accounts: string[]) => {
@@ -249,7 +255,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setError(null);
 
     // Remove event listeners
-    if (window.ethereum) {
+    if (typeof window !== 'undefined' && window.ethereum) {
       window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
       window.ethereum.removeListener('chainChanged', handleChainChanged);
     }

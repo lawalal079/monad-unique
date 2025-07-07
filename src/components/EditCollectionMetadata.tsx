@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ethers } from 'ethers';
+import { BrowserProvider, Contract, getDefaultProvider } from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
 import lighthouse from '@lighthouse-web3/sdk';
 import { motion } from 'framer-motion';
@@ -31,39 +31,59 @@ const EditCollectionMetadata: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setForm({ name: '', description: '', image: '', destinationAddress: '', royaltyAddress: '', royaltyPercent: '' });
+    setImagePreview(null);
+    console.log('EditCollectionMetadata: address param:', address);
     const fetchMetadata = async () => {
       if (!address) return;
       try {
         const provider = (window as any).ethereum
-          ? new ethers.providers.Web3Provider((window as any).ethereum)
-          : ethers.getDefaultProvider();
-        const collection = new ethers.Contract(address as string, [
+          ? new BrowserProvider((window as any).ethereum)
+          : getDefaultProvider();
+        const collection = new Contract(address as string, [
           'function name() view returns (string)',
           'function contractURI() view returns (string)',
-          'function owner() view returns (address)'
         ], provider);
         const name = await collection.name();
-        const destinationAddress = await collection.owner();
         let description = '';
         let image = '';
         let royaltyAddress = '';
         let royaltyPercent = '';
         const contractURI = await collection.contractURI();
+        console.log('EditCollectionMetadata: contractURI:', contractURI);
         if (contractURI) {
-          const res = await fetch(contractURI);
-          if (res.ok) {
-            const metadata = await res.json();
-            description = metadata.description || '';
-            image = metadata.image || '';
-            royaltyAddress = metadata.royaltyAddress || '';
-            royaltyPercent = metadata.royaltyPercent || '';
+          try {
+            const res = await fetch(contractURI);
+            console.log('EditCollectionMetadata: fetch contractURI response:', res);
+            if (res.ok) {
+              const metadata = await res.json();
+              console.log('EditCollectionMetadata: fetched metadata:', metadata);
+              description = metadata.description || '';
+              image = metadata.image || '';
+              royaltyAddress = metadata.royaltyAddress || '';
+              royaltyPercent = metadata.royaltyPercent || '';
+            }
+          } catch (fetchErr) {
+            console.warn('Error fetching or parsing metadata from contractURI:', contractURI, fetchErr);
           }
+        }
+        let destinationAddress = '';
+        try {
+          if (typeof collection.owner === 'function') {
+            destinationAddress = await collection.owner();
+          } else {
+            console.warn('collection.owner() is not a function on this contract. Skipping owner fetch.');
+          }
+        } catch (ownerErr) {
+          console.warn('Error calling collection.owner():', ownerErr);
         }
         setForm({ name, description, image, destinationAddress, royaltyAddress, royaltyPercent });
         setImagePreview(image);
-      } catch (err) {
+      } catch (err: any) {
+        console.warn('Error loading collection metadata:', err);
         setForm({ name: '', description: '', image: '', destinationAddress: '', royaltyAddress: '', royaltyPercent: '' });
         setImagePreview(null);
       }
@@ -112,7 +132,7 @@ const EditCollectionMetadata: React.FC = () => {
           return;
         }
         // Call transferOwnership
-        const collection = new ethers.Contract(address as string, [
+        const collection = new Contract(address as string, [
           'function transferOwnership(address newOwner) public',
         ], wallet.signer);
         const tx = await collection.transferOwnership(newOwner);
@@ -151,7 +171,7 @@ const EditCollectionMetadata: React.FC = () => {
       const contractURI = `https://gateway.lighthouse.storage/ipfs/${metadataUploadRes.data.Hash}`;
 
       // 3. Call setContractURI (or similar) on-chain
-      const collection = new ethers.Contract(address as string, [
+      const collection = new Contract(address as string, [
         'function owner() view returns (address)',
         'function setContractURI(string memory newURI) public',
       ], wallet.signer);

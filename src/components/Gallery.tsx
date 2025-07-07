@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useImportedAssets } from '../contexts/ImportedAssetsContext';
-import { ethers } from 'ethers';
+import { BrowserProvider, Contract } from 'ethers';
 import MonadNFTCollectionArtifact from '../abi/MonadNFTCollection.json';
 import lighthouse from '@lighthouse-web3/sdk';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -119,10 +119,7 @@ const Gallery: React.FC = () => {
   };
 
   // Get block explorer URL
-  const getBlockExplorerUrl = (txHash: string) => {
-    // You can customize this based on your network
-    return `https://sepolia.etherscan.io/tx/${txHash}`;
-  };
+  const getBlockExplorerUrl = (txHash: string) => `https://testnet.monadexplorer.com/tx/${txHash}`;
 
   // Check if asset is minted
   const isAssetMinted = (assetIndex: number) => {
@@ -155,12 +152,12 @@ const Gallery: React.FC = () => {
       // Request account access
       await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
       
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
+      const provider = new BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
       const userAddress = await signer.getAddress();
 
       // Create contract instance
-      const contract = new ethers.Contract(collectionAddress, MonadNFTCollectionArtifact.abi, signer);
+      const contract = new Contract(collectionAddress, MonadNFTCollectionArtifact.abi, signer);
 
       // Check if contract is paused
       let isPaused = false;
@@ -538,9 +535,33 @@ const Gallery: React.FC = () => {
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="w-full mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-300 text-sm"
+                  className="w-full mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-300 text-sm flex flex-col items-center"
+                  style={{ wordBreak: 'break-all' }}
                 >
-                  {mintSuccess}
+                  {/* Extract and format the hash if present */}
+                  {(() => {
+                    const match = mintSuccess.match(/(0x[a-fA-F0-9]{8,})/);
+                    const hash = match ? match[1] : null;
+                    const truncated = hash ? `${hash.slice(0, 8)}...${hash.slice(-6)}` : null;
+                    return (
+                      <>
+                        {typeof hash === 'string' ? mintSuccess.replace(hash, '') : mintSuccess}
+                        {hash && (
+                          <span className="font-mono bg-green-900/30 px-2 py-1 rounded ml-1" title={hash} style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', verticalAlign: 'middle' }}>
+                            {truncated}
+                            <button
+                              onClick={() => navigator.clipboard.writeText(hash)}
+                              className="ml-2 text-green-200 hover:text-green-100 text-xs underline"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                              title="Copy full hash"
+                            >
+                              Copy
+                            </button>
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </motion.div>
               )}
 

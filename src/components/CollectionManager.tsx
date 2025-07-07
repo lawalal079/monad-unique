@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ethers } from 'ethers';
+import { BrowserProvider, Contract } from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
 import MonadNFTFactoryABI from '../abi/MonadNFTFactory.json';
 
 // Factory address - you'll need to replace this with your actual deployed factory address
-const FACTORY_ADDRESS = process.env.REACT_APP_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000';
+const FACTORY_ADDRESS = process.env.REACT_APP_FACTORY_ADDRESS || '0x43976240c057C7b04AA2875EEd545B6C1C491119';
+if (!process.env.REACT_APP_FACTORY_ADDRESS) {
+  console.warn('REACT_APP_FACTORY_ADDRESS environment variable is missing. Using hardcoded fallback address.');
+}
 
 // Simple SVG Icons to replace lucide-react
 const PlusIcon = () => (
@@ -121,7 +124,8 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
     const fetchCollections = async () => {
       setErrorMsg(null);
       try {
-        const factory = new ethers.Contract(FACTORY_ADDRESS, MonadNFTFactoryABI, provider);
+        const provider = new BrowserProvider((window as any).ethereum);
+        const factory = new Contract(FACTORY_ADDRESS, MonadNFTFactoryABI, provider);
         let allCollections: string[] = [];
         try {
           allCollections = await factory.getAllCollections();
@@ -134,7 +138,7 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
         const images: Record<string, string> = {};
         for (const collectionAddr of allCollections) {
           try {
-            const collection = new ethers.Contract(collectionAddr, [
+            const collection = new Contract(collectionAddr, [
               'function owner() view returns (address)',
               'function name() view returns (string)',
               'function contractURI() view returns (string)'
@@ -221,7 +225,7 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
       {address && FACTORY_ADDRESS && FACTORY_ADDRESS !== '0x0000000000000000000000000000000000000000' && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {allCollectionsCount !== null && (
-          <div className="text-xs text-purple-400 mb-2 col-span-full">Total collections on chain (all owners): {allCollectionsCount}</div>
+          <div className="text-xs text-purple-400 mb-2 col-span-full">Your Deployed Collections</div>
         )}
         <AnimatePresence>
           {errorMsg ? (

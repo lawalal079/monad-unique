@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ethers } from 'ethers';
+import { BrowserProvider, Contract, getDefaultProvider } from 'ethers';
 import MonadNFTCollectionArtifact from '../abi/MonadNFTCollection.json';
 import lighthouse from '@lighthouse-web3/sdk';
 
@@ -48,9 +48,9 @@ const CollectionNFTs: React.FC = () => {
       if (!address) return;
       try {
         const provider = (window as any).ethereum
-          ? new ethers.providers.Web3Provider((window as any).ethereum)
-          : ethers.getDefaultProvider();
-        const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, provider);
+          ? new BrowserProvider((window as any).ethereum)
+          : getDefaultProvider();
+        const contract = new Contract(address, MonadNFTCollectionArtifact.abi, provider);
         const nextId: number = await contract.nextTokenId();
         setNextTokenId(Number(nextId));
       } catch (err) {
@@ -66,9 +66,9 @@ const CollectionNFTs: React.FC = () => {
     setLoading(true);
     try {
       const provider = (window as any).ethereum
-        ? new ethers.providers.Web3Provider((window as any).ethereum)
-        : ethers.getDefaultProvider();
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, provider);
+        ? new BrowserProvider((window as any).ethereum)
+        : getDefaultProvider();
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, provider);
       const start = loadedCount;
       const end = Math.min(start + BATCH_SIZE, nextTokenId);
       const nftPromises = [];
@@ -154,9 +154,9 @@ const CollectionNFTs: React.FC = () => {
     try {
       if (nft.tokenId !== undefined && address) {
         const provider = (window as any).ethereum
-          ? new ethers.providers.Web3Provider((window as any).ethereum)
-          : ethers.getDefaultProvider();
-        const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, provider);
+          ? new BrowserProvider((window as any).ethereum)
+          : getDefaultProvider();
+        const contract = new Contract(address, MonadNFTCollectionArtifact.abi, provider);
         const tokenURI = await contract.tokenURI(nft.tokenId);
         try {
         const res = await fetch(tokenURI);
@@ -178,8 +178,8 @@ const CollectionNFTs: React.FC = () => {
     } catch {}
     // Get connected wallet address
     if ((window as any).ethereum) {
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
+      const provider = new BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
       destination = await signer.getAddress();
       royaltyAddress = destination;
     }
@@ -256,9 +256,9 @@ const CollectionNFTs: React.FC = () => {
       // 4. Request wallet connection
       if (!(window as any).ethereum) throw new Error('Wallet not found');
       await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, signer);
+      const provider = new BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, signer);
       // 5. Call setTokenURI on-chain
       const tx1 = await contract.setTokenURI(nft.tokenId, metadataUrl, { gasLimit: 500000 });
       await tx1.wait();
@@ -282,9 +282,9 @@ const CollectionNFTs: React.FC = () => {
       if (!address) throw new Error('No collection address');
       if (!(window as any).ethereum) throw new Error('Wallet not found');
       await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, signer);
+      const provider = new BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, signer);
       const tx = await contract.burn(tokenId, { gasLimit: 300000 });
       await tx.wait();
       setBurnSuccess({ txHash: tx.hash });
@@ -307,9 +307,9 @@ const CollectionNFTs: React.FC = () => {
       if (!transferAddress) throw new Error('Recipient address is required');
       if (!(window as any).ethereum) throw new Error('Wallet not found');
       await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(address, MonadNFTCollectionArtifact.abi, signer);
+      const provider = new BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(address, MonadNFTCollectionArtifact.abi, signer);
       const from = await signer.getAddress();
       const tx = await contract['safeTransferFrom(address,address,uint256)'](from, transferAddress, tokenId, { gasLimit: 300000 });
       await tx.wait();

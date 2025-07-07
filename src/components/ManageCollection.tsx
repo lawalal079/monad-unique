@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ethers } from 'ethers';
+import { BrowserProvider, Contract, getDefaultProvider } from 'ethers';
 import MonadNFTFactoryArtifact from '../abi/MonadNFTFactory.json';
 
 // Simple SVG Icons to replace lucide-react
@@ -33,9 +33,9 @@ const ManageCollection: React.FC = () => {
       try {
         // Use the browser's Ethereum provider if available
         const provider = (window as any).ethereum
-          ? new ethers.providers.Web3Provider((window as any).ethereum)
-          : ethers.getDefaultProvider();
-        const collection = new ethers.Contract(address, [
+          ? new BrowserProvider((window as any).ethereum)
+          : getDefaultProvider();
+        const collection = new Contract(address, [
           'function name() view returns (string)',
           'function contractURI() view returns (string)'
         ], provider);

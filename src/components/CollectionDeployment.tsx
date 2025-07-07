@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import MonadNFTFactoryABI from '../abi/MonadNFTFactory.json';
-import { ethers } from 'ethers';
+import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import lighthouse from '@lighthouse-web3/sdk';
 
 interface DeployCollectionFormProps {
@@ -237,7 +237,7 @@ const TraitEditor: React.FC<TraitEditorProps> = ({ onDeployed }) => {
       }
       const contractURI = `https://gateway.lighthouse.storage/ipfs/${metadataUploadRes.data.Hash}`;
       // Deploy the collection using the factory contract
-      const factory = new ethers.Contract(
+      const factory = new Contract(
         FACTORY_ADDRESS,
         MonadNFTFactoryABI,
         wallet.signer
@@ -253,22 +253,30 @@ const TraitEditor: React.FC<TraitEditorProps> = ({ onDeployed }) => {
         royaltyFeeNumerator,
         {
           gasLimit: 5000000,
-          gasPrice: ethers.utils.parseUnits('2', 'gwei')
+          gasPrice: parseUnits('2', 'gwei')
         }
       );
       const receipt = await tx.wait();
-      // Find the CollectionCreated event
-      const event = receipt.events && receipt.events.find((e: any) => e.event === "CollectionCreated");
-      const newCollectionAddress = event && event.args && event.args.collection ? event.args.collection : null;
+      // Ethers v6: parse logs for CollectionCreated event
+      let newCollectionAddress = null;
+      for (const log of receipt.logs) {
+        try {
+          const parsed = factory.interface.parseLog(log);
+          if (parsed && parsed.name === 'CollectionCreated') {
+            newCollectionAddress = parsed.args[1]; // 0: owner, 1: collection
+            break;
+          }
+        } catch (e) {}
+      }
       if (!newCollectionAddress) {
-        throw new Error("Collection address not found in transaction receipt.");
+        throw new Error('Collection address not found in transaction receipt.');
       }
       setDeployed(true);
       setDeployData({
         ...data,
         contractAddress: newCollectionAddress,
         contractURI,
-        txHash: receipt.transactionHash,
+        txHash: tx.hash,
       });
       if (onDeployed) onDeployed();
     } catch (err: any) {
@@ -326,8 +334,10 @@ const TraitEditor: React.FC<TraitEditorProps> = ({ onDeployed }) => {
           {deployData?.txHash && (
             <button
               onClick={() => window.open(`https://testnet.monadexplorer.com/tx/${deployData.txHash}`, '_blank')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors ml-2"
+              title="View on Explorer"
             >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm-9 0a9 9 0 0118 0a9 9 0 01-18 0z" /></svg>
               View on Explorer
             </button>
           )}
