@@ -244,11 +244,13 @@ const CollectionNFTs: React.FC = () => {
       if (editForm.imageFile) {
         imageUrl = await uploadToIPFS(editForm.imageFile);
       }
-      // 2. Build new metadata (traits removed)
+      // 2. Build new metadata (traits included)
+      const filteredAttributes = editAttributes.filter(attr => attr.trait_type && attr.value);
       const metadata = {
         name: editForm.name,
         description: editForm.description,
-        image: imageUrl
+        image: imageUrl,
+        attributes: filteredAttributes
         // Add royalty fields if needed
       };
       // 3. Upload new metadata to IPFS
@@ -260,13 +262,41 @@ const CollectionNFTs: React.FC = () => {
       const signer = await provider.getSigner();
       const contract = new Contract(address, MonadNFTCollectionArtifact.abi, signer);
       // 5. Call setTokenURI on-chain
-      const tx1 = await contract.setTokenURI(nft.tokenId, metadataUrl, { gasLimit: 500000 });
-      await tx1.wait();
-      // 6. Call setTraitsAndRarity on-chain
-      const traitsJson = JSON.stringify(editAttributes.filter(attr => attr.trait_type && attr.value));
-      const tx2 = await contract.setTraitsAndRarity(nft.tokenId, traitsJson, nft.rarity, { gasLimit: 500000 });
-      await tx2.wait();
-      setEditSuccess({ txHash: tx2.hash, nft: { ...nft, name: editForm.name, image: imageUrl, traits: traitsJson } });
+      const tx = await contract.setTokenURI(nft.tokenId, metadataUrl, { gasLimit: 500000 });
+      await tx.wait();
+      // Fetch updated metadata from chain and IPFS
+      let updatedNFT = { ...nft };
+      try {
+        const tokenURI = await contract.tokenURI(nft.tokenId);
+        const traitsString = await contract.traits(nft.tokenId);
+        const rarity = await contract.rarity(nft.tokenId);
+        let image = '', name = '', description = '', attributes = [];
+        try {
+          const res = await fetch(tokenURI + '?t=' + Date.now()); // cache bust
+          if (res.ok) {
+            const metadata = await res.json();
+            image = metadata.image || '';
+            name = metadata.name || '';
+            description = metadata.description || '';
+            attributes = Array.isArray(metadata.attributes) ? metadata.attributes : [];
+          }
+        } catch {}
+        let traits = null;
+        // Always use attributes from metadata if present, else fallback to contract traits
+        if (attributes.length > 0) {
+          traits = attributes;
+        } else {
+          try {
+            traits = JSON.parse(traitsString);
+          } catch { traits = traitsString; }
+        }
+        updatedNFT = { tokenId: nft.tokenId, image, name, traits, rarity: Number(rarity) };
+      } catch {}
+      // Update nfts state
+      setNFTs(prev => prev.map(n => n.tokenId === nft.tokenId ? updatedNFT : n));
+      // Update modalNFT state if open
+      setModalNFT(m => m && m.tokenId === nft.tokenId ? updatedNFT : m);
+      setEditSuccess({ txHash: tx.hash, nft: updatedNFT });
       setShowEditModal(false);
     } catch (err: any) {
       setEditError(err.message || 'Update failed');
@@ -407,7 +437,38 @@ const CollectionNFTs: React.FC = () => {
           <div
             key={nft.tokenId}
             className="bg-white/10 rounded-lg p-4 flex flex-col items-center cursor-pointer hover:bg-white/20 transition-colors"
-            onClick={() => setModalNFT(nft)}
+            onClick={async () => {
+              // Always fetch the latest metadata from tokenURI for the modal
+              let latestNFT = nfts.find(n => n.tokenId === nft.tokenId) || nft;
+              try {
+                if (address) {
+                  const provider = (window as any).ethereum
+                    ? new BrowserProvider((window as any).ethereum)
+                    : getDefaultProvider();
+                  const contract = new Contract(address, MonadNFTCollectionArtifact.abi, provider);
+                  const tokenURI = await contract.tokenURI(nft.tokenId);
+                  const rarity = await contract.rarity(nft.tokenId);
+                  let image = latestNFT.image, name = latestNFT.name, attributes = [];
+                  try {
+                    const res = await fetch(tokenURI + '?t=' + Date.now());
+                    if (res.ok) {
+                      const metadata = await res.json();
+                      image = metadata.image || image;
+                      name = metadata.name || name;
+                      attributes = Array.isArray(metadata.attributes) ? metadata.attributes : [];
+                    }
+                  } catch {}
+                  latestNFT = {
+                    tokenId: nft.tokenId,
+                    image,
+                    name,
+                    traits: attributes,
+                    rarity: Number(rarity)
+                  };
+                }
+              } catch {}
+              setModalNFT(latestNFT);
+            }}
           >
             <img src={nft.image} alt={nft.name} className="w-40 h-40 object-cover rounded mb-4 border border-white/20 bg-white/10" />
             <div className="text-xl font-bold mb-2 text-center">{nft.name || `#${nft.tokenId}`}</div>
@@ -435,29 +496,26 @@ const CollectionNFTs: React.FC = () => {
               <div className="text-purple-200 text-sm mb-2 text-center">Token ID: {modalNFT.tokenId}</div>
               <div className="w-full flex flex-col items-center mt-2">
                 <span className="font-semibold text-center">Attributes:</span>
-                {Array.isArray(modalNFT.traits) ? (
-                  <ul className="list-disc text-center">
-                    {modalNFT.traits.map((attr: any, idx: number) => {
-                      // Defensive check to ensure attr is a valid object
-                      if (!attr || typeof attr !== 'object') {
-                        return null;
-                      }
-                      
-                      const traitType = typeof attr.trait_type === 'string' ? attr.trait_type : 
-                                       typeof attr.type === 'string' ? attr.type : 'Unknown';
-                      const value = typeof attr.value === 'string' ? attr.value : 'Unknown';
-                      
-                      return (
-                        <li key={idx} className="text-center">{traitType}: {value}</li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <span className="text-center">
-                    {typeof modalNFT.traits === 'string' ? modalNFT.traits : 
-                     modalNFT.traits ? JSON.stringify(modalNFT.traits) : 'No attributes'}
-                  </span>
-                )}
+                {(() => {
+                  let traitsArr = Array.isArray(modalNFT.traits)
+                    ? modalNFT.traits
+                    : (typeof modalNFT.traits === 'string' ? (() => { try { return JSON.parse(modalNFT.traits); } catch { return []; } })() : []);
+                  if (!Array.isArray(traitsArr) || traitsArr.length === 0) {
+                    return <span className="text-center">No attributes</span>;
+                  }
+                  return (
+                    <ul className="list-disc text-center">
+                      {traitsArr.map((attr: any, idx: number) => {
+                        if (!attr || typeof attr !== 'object') return null;
+                        const traitType = typeof attr.trait_type === 'string' ? attr.trait_type : typeof attr.type === 'string' ? attr.type : 'Unknown';
+                        const value = typeof attr.value === 'string' ? attr.value : 'Unknown';
+                        return (
+                          <li key={idx} className="text-center">{traitType}: {value}</li>
+                        );
+                      })}
+                    </ul>
+                  );
+                })()}
               </div>
             </div>
             <div className="flex flex-col items-center w-1/2 justify-center gap-4">

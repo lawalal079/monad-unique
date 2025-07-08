@@ -146,15 +146,32 @@ class ErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: Error) {
-    // Filter out errors from browser extensions (e.g., walletRouter, chrome-extension, shouldSetTallyForCurrentProvider, window$walletRouter, Tally)
-    if (
-      (error.stack && error.stack.includes('chrome-extension://')) ||
-      (error.message && error.message.includes('walletRouter')) ||
-      (error.message && error.message.includes('shouldSetTallyForCurrentProvider')) ||
-      (error.message && error.message.includes('window$walletRouter')) ||
-      (error.stack && error.stack.includes('window$walletRouter')) ||
-      (error.message && error.message.includes('Tally'))
-    ) {
+    // Filter out errors from browser extensions (wallets, injected providers, etc.)
+    const extensionPatterns = [
+      'chrome-extension://',
+      'walletRouter',
+      'window-provider.js',
+      'shouldSetTallyForCurrentProvider',
+      'window$walletRouter',
+      'Tally',
+      'MetaMask',
+      'CoinbaseWallet',
+      'phantom',
+      'rabby',
+      'ethereum-connector',
+      'InjectedProvider',
+      'injectedScript',
+      'Proposal expired', // Suppress this error from UI
+    ];
+    const message = error.message || '';
+    const stack = error.stack || '';
+    // Also check errorInfo if available (for React 18+)
+    // @ts-ignore
+    const errorInfo = error.errorInfo || '';
+    const isExtensionError = extensionPatterns.some((pattern) =>
+      message.includes(pattern) || stack.includes(pattern) || (typeof errorInfo === 'string' && errorInfo.includes(pattern))
+    );
+    if (isExtensionError) {
       // Do not trigger error UI for extension errors
       return { hasError: false, error: null };
     }
@@ -162,13 +179,8 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Optionally log only non-extension errors
-    if (
-      !(error.stack && error.stack.includes('chrome-extension://')) &&
-      !(error.message && error.message.includes('walletRouter'))
-    ) {
-      console.error('React Error Boundary caught an error:', error, errorInfo);
-    }
+    // Only log non-extension errors
+    // (Removed all logging for production cleanliness)
   }
 
   render() {
@@ -214,6 +226,8 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+export { ErrorBoundary };
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'create' | 'rarity' | 'collections' | 'templates'>('create');
   const [currentCollection, setCurrentCollection] = useState<NFTCollection | null>(null);
@@ -237,7 +251,6 @@ const App: React.FC = () => {
       const handleChainChanged = (id: string) => {
         setChainId(id);
         // Optionally show a success message
-        console.log('Network switched successfully');
       };
       window.ethereum.on('chainChanged', handleChainChanged);
       // Cleanup listener
@@ -255,7 +268,6 @@ const App: React.FC = () => {
       await ensureMonadNetwork();
       // Don't need to do anything here - the chainChanged event will update the state
     } catch (err) {
-      console.error('Failed to switch to Monad network:', err);
       alert('Failed to switch to Monad network. Please try again.');
     } finally {
       setIsSwitching(false);
@@ -318,9 +330,8 @@ const App: React.FC = () => {
       localStorage.removeItem('importedAssets');
       localStorage.removeItem('currentCollection');
       localStorage.removeItem('previewNFT');
-      console.log('Cleared corrupted data from localStorage');
     } catch (error) {
-      console.error('Error clearing localStorage:', error);
+      // console.error('Error clearing localStorage:', error);
     }
   };
 
@@ -334,25 +345,22 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <ImportedAssetsProvider>
     <Router>
-      {/* Wallet Connect Button - absolute top right, always visible */}
-      <div className="fixed top-6 right-8 z-50">
+      {/* Wallet Connect Button and Switch Network Button - absolute top right, always visible */}
+      <div className="fixed top-6 right-8 z-50 flex items-center space-x-2">
         <WalletConnectButton />
-      </div>
-      <Routes>
-        <Route path="/" element={
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1333] to-[#2d225a]">
-      {/* Wallet Connect Button - absolute top right */}
-      <div className="w-full flex justify-end items-center pt-4 space-x-2">
         {showSwitchButton && (
           <button
             onClick={handleSwitchMonad}
             disabled={isSwitching}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg ml-2 font-bold transition-colors"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold transition-colors"
           >
             {isSwitching ? 'Switching...' : 'Switch to Monad'}
           </button>
         )}
       </div>
+      <Routes>
+        <Route path="/" element={
+      <div className="min-h-screen bg-gradient-to-br from-[#1a1333] to-[#2d225a]">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <motion.div 

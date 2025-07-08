@@ -109,7 +109,6 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
   const [createForm, setCreateForm] = useState({ name: '', symbol: '', description: '', external_link: '', image: null as File | null });
   const [createError, setCreateError] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
-  const [firstFetchDone, setFirstFetchDone] = useState(false);
 
   const placeholderImg = 'https://via.placeholder.com/80x80.png?text=NFT';
 
@@ -118,9 +117,7 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
     if (!provider || !address || !FACTORY_ADDRESS || FACTORY_ADDRESS === '0x0000000000000000000000000000000000000000') {
       return;
     }
-    let polling = true;
-    let pollCount = 0;
-    let firstFetch = true;
+    let cancelled = false;
     const fetchCollections = async () => {
       setErrorMsg(null);
       try {
@@ -133,6 +130,7 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
         } catch (allErr) {
           setAllCollectionsCount(null);
         }
+        // Sequentially fetch owned collections and their metadata
         const ownedCollections: string[] = [];
         const names: Record<string, string> = {};
         const images: Record<string, string> = {};
@@ -147,50 +145,47 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
             if (owner.toLowerCase() === address.toLowerCase()) {
               ownedCollections.push(collectionAddr);
               try {
-                names[collectionAddr] = await collection.name();
+                const name = await collection.name();
+                if (name && typeof name === 'string') {
+                  names[collectionAddr] = name;
+                }
                 try {
                   const contractURI = await collection.contractURI();
                   if (contractURI) {
                     const res = await fetch(contractURI);
                     if (res.ok) {
                       const metadata = await res.json();
-                      if (metadata.image) {
+                      if (metadata.image && typeof metadata.image === 'string') {
                         images[collectionAddr] = metadata.image;
+                      }
+                      if (metadata.name && typeof metadata.name === 'string') {
+                        names[collectionAddr] = metadata.name;
                       }
                     }
                   }
                 } catch (imgErr) {
-                  images[collectionAddr] = '';
+                  // Do not set image if fetch fails
                 }
               } catch (nameErr) {
-                names[collectionAddr] = '';
-                images[collectionAddr] = '';
+                // Do not set name if fetch fails
               }
             }
           } catch (err) {}
         }
-        setCollections(ownedCollections);
+        // After fetching, sort ownedCollections to match allCollections order
+        const orderedOwnedCollections = allCollections.filter(addr => ownedCollections.includes(addr));
+        if (!cancelled) {
+          setCollections(orderedOwnedCollections);
         setCollectionNames(names);
         setCollectionImages(images);
+        }
       } catch (err) {
         setCollections([]);
         setErrorMsg('Failed to fetch collections');
       }
-      if (firstFetch) {
-        firstFetch = false;
-        setFirstFetchDone(true);
-      }
     };
-    // Aggressive polling for 5 seconds after refreshKey changes
-    const poll = async () => {
-      while (polling && pollCount < 5) {
-        await fetchCollections();
-        pollCount++;
-        await new Promise(res => setTimeout(res, 1000));
-      }
-    };
-    poll();
-    return () => { polling = false; };
+    fetchCollections();
+    return () => { cancelled = true; };
   }, [provider, address, refreshKey]);
 
   // Always show the collection grid, no loading spinner
@@ -230,7 +225,7 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
         <AnimatePresence>
           {errorMsg ? (
             <div className="text-red-400">Error: {errorMsg}</div>
-          ) : firstFetchDone && collections.length === 0 ? (
+          ) : collections.length === 0 ? (
             <div className="text-purple-200">No collections found. Create one!</div>
           ) : (
             collections.map((collectionAddr) => (
@@ -241,7 +236,36 @@ const CollectionManager: React.FC<{ refreshKey?: number }> = ({ refreshKey }) =>
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20 hover:border-purple-400/50 transition-all duration-300 flex flex-col gap-2"
               >
-                <img src={collectionImages[collectionAddr] || placeholderImg} alt="Collection" className="w-20 h-20 rounded mb-2 self-center" />
+                <img 
+                  src={collectionImages[collectionAddr] || placeholderImg}
+                  alt="Collection"
+                  className="w-20 h-20 rounded mb-2 self-center"
+                  onError={e => {
+                    const img = e.currentTarget;
+                    const gateways = [
+                      'gateway.lighthouse.storage',
+                      'ipfs.io',
+                      'cloudflare-ipfs.com',
+                      'dweb.link'
+                    ];
+                    // Track which gateway has been tried using a data attribute
+                    let tried = img.dataset.gatewaysTried ? img.dataset.gatewaysTried.split(',') : [];
+                    const current = gateways.find(gw => img.src.includes(gw));
+                    if (current) tried.push(current);
+                    const next = gateways.find(gw => !tried.includes(gw));
+                    if (next && img.src.includes('ipfs/')) {
+                      // Replace the current gateway with the next one
+                      img.src = img.src.replace(/https?:\/\/(?:[^/]+)\/ipfs\//, `https://${next}/ipfs/`);
+                      img.dataset.gatewaysTried = tried.join(',');
+                    } else if (!img.dataset.corsTried && img.src.startsWith('http')) {
+                      // Try CORS proxy as last resort
+                      img.src = `https://corsproxy.io/?${encodeURIComponent(img.src)}`;
+                      img.dataset.corsTried = 'true';
+                    } else {
+                      img.src = placeholderImg;
+                    }
+                  }}
+                />
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <div className="text-white font-bold text-lg mb-1">

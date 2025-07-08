@@ -49,9 +49,10 @@ const CheckIcon = () => (
 interface PreviewPanelProps {
   nft: any;
   generatePreview: () => void;
+  onTraitsChange?: (traits: any[]) => void;
 }
 
-const PreviewPanel: React.FC<PreviewPanelProps> = ({ nft, generatePreview }) => {
+const PreviewPanel: React.FC<PreviewPanelProps> = ({ nft, generatePreview, onTraitsChange }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -222,6 +223,20 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ nft, generatePreview }) => 
     }
   };
 
+  const handleTraitChange = (idx: number, field: string, value: string) => {
+    if (!onTraitsChange) return;
+    const updated = safeTraits.map((t: any, i: number) => i === idx ? { ...t, [field]: value } : t);
+    onTraitsChange(updated);
+  };
+  const handleAddTrait = () => {
+    if (!onTraitsChange) return;
+    onTraitsChange([...safeTraits, { trait_type: '', value: '' }]);
+  };
+  const handleRemoveTrait = (idx: number) => {
+    if (!onTraitsChange) return;
+    onTraitsChange(safeTraits.filter((_: any, i: number) => i !== idx));
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -294,6 +309,34 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ nft, generatePreview }) => 
         {/* Traits Breakdown */}
         <div className="space-y-4">
           <h4 className="text-white font-bold text-lg">Traits Breakdown</h4>
+          {onTraitsChange ? (
+            <div className="space-y-2 mb-4">
+              {safeTraits.map((trait: any, i: number) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={trait.trait_type || trait.category || ''}
+                    onChange={e => handleTraitChange(i, 'trait_type', e.target.value)}
+                    placeholder="Trait type"
+                    className="flex-1 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs"
+                  />
+                  <input
+                    type="text"
+                    value={trait.value || trait.name || ''}
+                    onChange={e => handleTraitChange(i, 'value', e.target.value)}
+                    placeholder="Value"
+                    className="flex-1 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs"
+                  />
+                  <button type="button" onClick={() => handleRemoveTrait(i)} className="text-red-400 hover:text-red-600 text-lg px-2" title="Delete trait">
+                    🗑️
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={handleAddTrait} className="mt-2 flex items-center gap-1 text-green-400 hover:text-green-600 text-sm font-bold">
+                <span className="text-lg">＋</span> Add Trait
+              </button>
+            </div>
+          ) : null}
           <AnimatePresence>
             {safeTraits.map((trait: any, index: number) => {
               // Defensive check to ensure trait is valid

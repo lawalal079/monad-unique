@@ -222,6 +222,11 @@ const TraitEditor: React.FC<TraitEditorProps> = ({ onDeployed }) => {
         throw new Error('Lighthouse image upload failed');
       }
       const imageUrl = `https://gateway.lighthouse.storage/ipfs/${imageUploadRes.data.Hash}`;
+      if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.startsWith('http')) {
+        alert('Image upload failed or returned invalid URL.');
+        setIsMinting(false);
+        return;
+      }
       // 2. Create metadata JSON and upload as File
       const metadata = {
         name: data.name,

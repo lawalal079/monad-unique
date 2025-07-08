@@ -36,7 +36,6 @@ const EditCollectionMetadata: React.FC = () => {
   useEffect(() => {
     setForm({ name: '', description: '', image: '', destinationAddress: '', royaltyAddress: '', royaltyPercent: '' });
     setImagePreview(null);
-    console.log('EditCollectionMetadata: address param:', address);
     const fetchMetadata = async () => {
       if (!address) return;
       try {
@@ -53,14 +52,11 @@ const EditCollectionMetadata: React.FC = () => {
         let royaltyAddress = '';
         let royaltyPercent = '';
         const contractURI = await collection.contractURI();
-        console.log('EditCollectionMetadata: contractURI:', contractURI);
         if (contractURI) {
           try {
             const res = await fetch(contractURI);
-            console.log('EditCollectionMetadata: fetch contractURI response:', res);
             if (res.ok) {
               const metadata = await res.json();
-              console.log('EditCollectionMetadata: fetched metadata:', metadata);
               description = metadata.description || '';
               image = metadata.image || '';
               royaltyAddress = metadata.royaltyAddress || '';

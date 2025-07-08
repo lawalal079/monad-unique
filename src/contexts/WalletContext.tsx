@@ -64,7 +64,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         }
       }
     } catch (err) {
-      console.log('No existing wallet connection');
+      // Remove all console.log statements
     }
   };
 

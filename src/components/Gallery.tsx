@@ -159,6 +159,28 @@ const Gallery: React.FC = () => {
       // Create contract instance
       const contract = new Contract(collectionAddress, MonadNFTCollectionArtifact.abi, signer);
 
+      // Check permissions before minting
+      let isOwner = false;
+      let isSigner = false;
+      let owner = '';
+      
+      try {
+        owner = await contract.owner();
+        isOwner = owner.toLowerCase() === userAddress.toLowerCase();
+      } catch (e) {
+        console.log('Could not check owner:', e);
+      }
+      
+      try {
+        isSigner = await contract.signers(userAddress);
+      } catch (e) {
+        console.log('Could not check signer status:', e);
+      }
+
+      if (!isOwner && !isSigner) {
+        throw new Error(`You don't have permission to mint to this collection. You need to be either the owner (${owner}) or a signer.`);
+      }
+
       // Check if contract is paused
       let isPaused = false;
       try {
@@ -226,6 +248,7 @@ const Gallery: React.FC = () => {
       }, 3000);
 
     } catch (err: any) {
+      console.error('Minting error:', err);
       setMintError(err.message || 'Minting failed');
       
       // Update status to failed if we have a transaction hash
@@ -564,6 +587,48 @@ const Gallery: React.FC = () => {
                   })()}
                 </motion.div>
               )}
+
+              {/* Editable Traits Section */}
+              <div className="w-full mb-4">
+                <label className="block text-sm font-medium text-purple-200 mb-2">Traits</label>
+                {mintAsset.traits && mintAsset.traits.length === 0 && (
+                  <div className="text-purple-300 text-xs mb-2">No traits yet. Add one below.</div>
+                )}
+                <div className="space-y-2">
+                  {(mintAsset.traits || []).map((trait: any, i: number) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={trait.trait_type}
+                        onChange={e => {
+                          setAssets(prev => prev.map((asset: any, idx: number) => idx === mintAssetIdx ? { ...asset, traits: asset.traits.map((t: any, j: number) => j === i ? { ...t, trait_type: e.target.value } : t) } : asset));
+                        }}
+                        placeholder="Trait type"
+                        className="flex-1 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={trait.value}
+                        onChange={e => {
+                          setAssets(prev => prev.map((asset: any, idx: number) => idx === mintAssetIdx ? { ...asset, traits: asset.traits.map((t: any, j: number) => j === i ? { ...t, value: e.target.value } : t) } : asset));
+                        }}
+                        placeholder="Value"
+                        className="flex-1 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs"
+                      />
+                      <button type="button" onClick={() => {
+                        setAssets(prev => prev.map((asset: any, idx: number) => idx === mintAssetIdx ? { ...asset, traits: asset.traits.filter((_: any, j: number) => j !== i) } : asset));
+                      }} className="text-red-400 hover:text-red-600 text-lg px-2" title="Delete trait">
+                        🗑️
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => {
+                  setAssets(prev => prev.map((asset: any, idx: number) => idx === mintAssetIdx ? { ...asset, traits: [...(asset.traits || []), { trait_type: '', value: '' }] } : asset));
+                }} className="mt-2 flex items-center gap-1 text-green-400 hover:text-green-600 text-sm font-bold">
+                  <span className="text-lg">＋</span> Add Trait
+                </button>
+              </div>
 
               {/* Mint Button */}
               <button 

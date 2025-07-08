@@ -944,7 +944,7 @@ const ImportAssets: React.FC = () => {
                       <input
                         className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:border-purple-500"
                         value={asset.name || ''}
-                        onChange={e => handleSetMetadata(metadata.map((r, index) => 
+                        onChange={e => setPreviewAssets(prev => prev.map((r, index) => 
                           index === idx ? { ...r, name: e.target.value } : r
                         ))}
                       />
@@ -955,7 +955,7 @@ const ImportAssets: React.FC = () => {
                         className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm resize-none focus:outline-none focus:border-purple-500"
                         rows={2}
                         value={asset.description || ''}
-                        onChange={e => handleSetMetadata(metadata.map((r, index) => 
+                        onChange={e => setPreviewAssets(prev => prev.map((r, index) => 
                           index === idx ? { ...r, description: e.target.value } : r
                         ))}
                       />
@@ -963,31 +963,40 @@ const ImportAssets: React.FC = () => {
                     {/* Traits Section */}
                     <div className="w-full mt-2">
                       <div className="text-sm font-semibold text-purple-200 mb-2">Traits</div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2 w-full">
                         {Array.isArray(asset.traits) && asset.traits.map((trait, i) => {
-                          // Defensive check to ensure trait is a valid object
-                          if (!trait || typeof trait !== 'object') {
-                            return null;
-                          }
+                          if (!trait || typeof trait !== 'object') return null;
                           return (
-                            <React.Fragment key={i}>
-                              <div className="bg-white/10 rounded-l px-2 py-1 text-xs text-purple-200 font-semibold overflow-hidden break-words text-right">
-                                {typeof trait.trait_type === 'string' ? trait.trait_type : 'Unknown'}
-                              </div>
+                            <div key={i} className="flex items-center gap-2 w-full box-border">
                               <input
-                                className="bg-white/10 rounded-r px-2 py-1 text-xs text-white overflow-hidden break-words text-left focus:outline-none focus:border-purple-500 border border-transparent focus:bg-white/20"
+                                className="w-1/2 box-border px-4 py-2 bg-white/10 border-2 border-white/30 rounded text-xs text-white focus:outline-none focus:border-purple-500 placeholder-purple-300"
+                                value={typeof trait.trait_type === 'string' ? trait.trait_type : ''}
+                                onChange={e => {
+                                  const newType = e.target.value;
+                                  setPreviewAssets(prev => prev.map((r, assetIndex) => {
+                                    if (assetIndex !== idx) return r;
+                                    const newTraits = Array.isArray(r.traits) ? [...r.traits] : [];
+                                    if (newTraits[i]) newTraits[i] = { ...newTraits[i], trait_type: newType };
+                                    return { ...r, traits: newTraits };
+                                  }));
+                                }}
+                                placeholder="Attribute Type (e.g. Background)"
+                              />
+                              <input
+                                className="w-1/2 box-border px-4 py-2 bg-white/10 border-2 border-white/30 rounded text-xs text-white focus:outline-none focus:border-purple-500 placeholder-purple-300"
                                 value={typeof trait.value === 'string' ? trait.value : ''}
                                 onChange={e => {
                                   const newValue = e.target.value;
-                                  handleSetMetadata(metadata.map((r, assetIndex) => {
+                                  setPreviewAssets(prev => prev.map((r, assetIndex) => {
                                     if (assetIndex !== idx) return r;
                                     const newTraits = Array.isArray(r.traits) ? [...r.traits] : [];
                                     if (newTraits[i]) newTraits[i] = { ...newTraits[i], value: newValue };
                                     return { ...r, traits: newTraits };
                                   }));
                                 }}
+                                placeholder="Value (e.g. Blue)"
                               />
-                            </React.Fragment>
+                            </div>
                           );
                         })}
                       </div>

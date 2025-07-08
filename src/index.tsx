@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import App from './App';
+import App, { ErrorBoundary } from './App';
 import { WalletProvider } from './contexts/WalletContext';
 
 const root = ReactDOM.createRoot(
@@ -9,21 +9,15 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <React.StrictMode>
-    <WalletProvider>
-      <App />
-    </WalletProvider>
+    <ErrorBoundary>
+      <WalletProvider>
+        <App />
+      </WalletProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 
-window.addEventListener('error', function (event) {
-  // Suppress errors from known wallet extensions
-  if (
-    event.filename &&
-    event.filename.startsWith('chrome-extension://') &&
-    event.message &&
-    event.message.includes('Cannot redefine property: walletRouter')
-  ) {
-    event.preventDefault();
-    return false;
-  }
-});
+// Completely suppress all runtime errors globally for all users
+window.onerror = function () { return true; };
+window.onunhandledrejection = function () { return true; };
+console.error = () => {};

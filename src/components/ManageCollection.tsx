@@ -102,8 +102,8 @@ const ManageCollection: React.FC = () => {
         </div>
       </div>
       <div className="max-w-2xl w-full mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div
             className="bg-white/10 border border-white/20 rounded-lg p-6 cursor-pointer focus:outline-none transition-colors w-full text-center"
             onClick={() => navigate(`/collection/${address}/mint`)}
             tabIndex={0}
@@ -112,21 +112,21 @@ const ManageCollection: React.FC = () => {
           </div>
           <div
             className="bg-white/10 border border-white/20 rounded-lg p-6 cursor-pointer focus:outline-none transition-colors w-full text-center"
-            onClick={() => navigate(`/collection/${address}/edit`)}
+          onClick={() => navigate(`/collection/${address}/edit`)}
             tabIndex={0}
-          >
-            Modify Metadata
-          </div>
-          <div
+        >
+          Modify Metadata
+        </div>
+        <div
             className="bg-white/10 border border-white/20 rounded-lg p-6 cursor-pointer focus:outline-none transition-colors w-full text-center"
             onClick={() => navigate(`/collection/${address}/nfts`)}
             tabIndex={0}
-          >
+        >
             NFT Vault
-          </div>
+        </div>
           <div className="bg-white/10 border border-white/20 rounded-lg p-6 cursor-pointer focus:outline-none transition-colors w-full text-center" onClick={() => navigate(`/collection/${address}/permissions`)} tabIndex={0}>
             Admin Tools
-          </div>
+        </div>
         </div>
       </div>
     </div>

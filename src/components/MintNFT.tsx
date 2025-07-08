@@ -375,9 +375,17 @@ const MintNFT: React.FC = () => {
             </div>
             <button
               type="submit"
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded mt-4 w-full"
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded mt-4 w-full flex items-center justify-center"
+              disabled={loading}
             >
-              Mint NFT
+              {loading ? (
+                <>
+                  <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+                  Minting...
+                </>
+              ) : (
+                'Mint NFT'
+              )}
             </button>
             {error && <div className="text-red-400 font-semibold mt-2">{error}</div>}
             {success && <div className="text-green-400 font-semibold mt-2">{success}</div>}

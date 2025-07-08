@@ -180,11 +180,12 @@ const WalletConnectButton: React.FC = () => {
               {availableWallets.map((w) => (
                 <button
                   key={w}
-                  className={`w-full px-4 py-2 rounded-lg border border-white/20 text-white font-semibold transition-colors ${connecting === w ? 'bg-purple-700' : 'bg-white/10 hover:bg-purple-800/30'}`}
+                  className={`w-full px-4 py-2 rounded-lg border border-white/20 text-white font-semibold transition-colors flex items-center gap-2 ${connecting === w ? 'bg-purple-700' : 'bg-white/10 hover:bg-purple-800/30'}`}
                   onClick={() => handleConnect(w)}
                   disabled={!!connecting}
                 >
-                  {getWalletIcon(w)} <span className="ml-2">{getWalletLabel(w)}</span>
+                  {getWalletIcon(w)}
+                  <span>{getWalletLabel(w)}</span>
                   {connecting === w && ' (Connecting...)'}
                 </button>
               ))}
